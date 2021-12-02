@@ -1,0 +1,77 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+      - ovirt-4.4
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: quay.io/ovirt/ovirt-provider-ovn-tests:${{ matrix.tag }}
+    strategy:
+      matrix:
+        tag: [ centos-8, centos-9 ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run check
+      run: make check
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    container: quay.io/ovirt/ovirt-provider-ovn-tests:${{ matrix.tag }}
+    strategy:
+      matrix:
+        tag: [ centos-8, centos-9 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run unit tests
+        run: make unittest
+
+  lint:
+    runs-on: ubuntu-latest
+    container: quay.io/ovirt/ovirt-provider-ovn-tests:${{ matrix.tag }}
+    strategy:
+      matrix:
+        tag: [ centos-8, centos-9 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run lint
+        run: make lint
+
+  coverage:
+    runs-on: ubuntu-latest
+    container: quay.io/ovirt/ovirt-provider-ovn-tests:${{ matrix.tag }}
+    strategy:
+      matrix:
+        tag: [ centos-8, centos-9 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run coverage
+        run: make coverage
+
+  integration-tests:
+    env:
+      RUN_INTEG_TESTS: 1
+      IMAGE_TAG: ${{ matrix.tag }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tag: [ centos-8, centos-9 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install podman python3-pip
+          sudo python3 -m pip install --upgrade pip
+          sudo python3 -m pip install tox
+      - name: Run itegration tests
+        run: sudo -E ./automation/create_it_env.sh
+      - uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: ovirt-provider-ovn-integ-tests-${{ matrix.tag }}
+          path: exported-artifacts/
+          retention-days: 5
+
